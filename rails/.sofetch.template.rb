@@ -1,3 +1,5 @@
+heroku_name = ask("What do you want to name the Heroku instances?")
+
 gem('devise')
 gem("haml-rails", "~> 1.0")
 gem('delayed_job_active_record')
@@ -10,7 +12,10 @@ gem('clockwork')
 
 gem_group :development, :test do
   gem 'rspec-rails'
+  gem 'timecop'
   gem 'dotenv'
+  gem 'vcr'
+  gem 'webmock'
 end
 
 gem_group :production, :staging do
@@ -19,25 +24,26 @@ end
 
 run("bundle install")
 run("bundle update --bundler")
+run("cp config/environments/production.rb config/environments/staging.rb")
 
 environment do 
-<<~CODE
+<<~HAML
   config.generators do |g|
     g.template_engine :haml
   end
-CODE
+HAML
 end
 
 # ./.ruby-version
-file '.ruby-version', <<~CODE
+file '.ruby-version', <<~RUBYVERSION
   ruby-2.6.0@#{app_name}
-CODE
+RUBYVERSION
 
 ## config/database.yml
 
 remove_file 'config/database.yml'
 
-file 'config/database.yml', <<~CODE
+file 'config/database.yml', <<~DATABASECONFIG
   default: &default
     adapter: postgresql
     encoding: unicode
@@ -52,17 +58,44 @@ file 'config/database.yml', <<~CODE
     <<: *default
     database: #{app_name}_test
     username: cgrusden
-CODE
+DATABASECONFIG
 
 ## end config/database.yml
 
+#  Mailgun settings 
+mailgunstaging = <<~MAILGUNSTAGING
+  ActionMailer::Base.smtp_settings = {
+    :port           => ENV['MAILGUN_SMTP_PORT'],
+    :address        => ENV['MAILGUN_SMTP_SERVER'],
+    :user_name      => ENV['MAILGUN_SMTP_LOGIN'],
+    :password       => ENV['MAILGUN_SMTP_PASSWORD'],
+    :domain         => '#{app_name}-staging.herokuapp.com',
+    :authentication => :plain,
+  }
+  ActionMailer::Base.delivery_method = :smtp
+MAILGUNSTAGING
+environment mailgunstaging, env: 'staging'
+
+mailgunproduction = <<~MAILGUNPRODUCTION
+  ActionMailer::Base.smtp_settings = {
+    :port           => ENV['MAILGUN_SMTP_PORT'],
+    :address        => ENV['MAILGUN_SMTP_SERVER'],
+    :user_name      => ENV['MAILGUN_SMTP_LOGIN'],
+    :password       => ENV['MAILGUN_SMTP_PASSWORD'],
+    :domain         => '#{app_name}-production.herokuapp.com',
+    :authentication => :plain,
+  }
+  ActionMailer::Base.delivery_method = :smtp
+MAILGUNPRODUCTION
+environment mailgunproduction, env: 'production'
+
 # ./config.ru
-file 'config.ru', <<~CODE
+file 'config.ru', <<~CONFIGRU
   require ::File.expand_path('../config/environment', __FILE__)
   run Rails.application
-CODE
+CONFIGRU
 
-file 'config/clock.rb', <<~CODE
+file 'config/clock.rb', <<~CLOCKRB
   require 'clockwork'
   require './config/boot'
   require './config/environment'
@@ -75,15 +108,15 @@ file 'config/clock.rb', <<~CODE
     #every(30.minutes, 'Whatever Job', at: ['**:00', '**:30']) do 
       # Whatever code to run every 30 minutes
   end
-CODE
+CLOCKRB
 
 # ./Procfile 
-file 'Procfile', <<~CODE
+file 'Procfile', <<~PROCFILE
   web: bundle exec puma -C config/puma.rb
   worker:  bundle exec rake jobs:work
   clock: bundle exec clockwork config/clock.rb
   release: rake db:migrate
-CODE
+PROCFILE
 
 rails_command "db:create:all"
 
@@ -107,9 +140,10 @@ after_bundle do
   git add: "."
   git commit: %Q{ -m 'Initial commit' }
 
-  # Heroku setup
-  heroku_name = ask("What do you want to name the Heroku instances?")
-  run("heroku create #{heroku_name}-staging -r staging --addons newrelic,mailgun,airbrake,papertrail,heroku-postgresql:hobby-dev")
-  run("heroku create #{heroku_name}-production -r production --addons newrelic,mailgun,airbrake,papertrail,heroku-postgresql:hobby-dev")
+  if yes?("Create Heroku instances?")
+    # Heroku setup
+    run("heroku create #{heroku_name}-staging -r staging --addons newrelic,mailgun,airbrake,papertrail,heroku-postgresql:hobby-dev")
+    run("heroku create #{heroku_name}-production -r production --addons newrelic,mailgun,airbrake,papertrail,heroku-postgresql:hobby-dev")
+  end
 end
 
