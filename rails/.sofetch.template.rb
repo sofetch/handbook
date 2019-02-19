@@ -1,21 +1,22 @@
 heroku_name = ask("What do you want to name the Heroku instances?")
 
-gem('devise')
-gem("haml-rails", "~> 1.0")
-gem('delayed_job_active_record')
-gem('twilio-ruby', '~> 5.20.1')
-gem('stripe')
 gem('administrate')
-gem('state_machines')
-gem('pg')
 gem('clockwork')
+gem('devise')
+gem('delayed_job_active_record')
+gem("haml-rails", "~> 1.0")
+gem('pg')
+gem('rolify')
+gem('stripe')
+gem('state_machines')
+gem('twilio-ruby', '~> 5.20.1')
 
 gem_group :development, :test do
+  gem 'dotenv'
   gem 'rspec-rails'
   gem 'timecop'
-  gem 'dotenv'
-  gem 'vcr'
   gem 'webmock'
+  gem 'vcr'
 end
 
 gem_group :production, :staging do
