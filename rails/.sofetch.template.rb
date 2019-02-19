@@ -148,5 +148,8 @@ after_bundle do
 
   # cleanup
   run("rm -rf test/")
+  file '.slugignore', <<~SLUGIGNORE
+  spec/
+  SLUGIGNORE
 end
 
