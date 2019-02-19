@@ -145,5 +145,8 @@ after_bundle do
     run("heroku create #{heroku_name}-staging -r staging --addons newrelic,mailgun,airbrake,papertrail,heroku-postgresql:hobby-dev")
     run("heroku create #{heroku_name}-production -r production --addons newrelic,mailgun,airbrake,papertrail,heroku-postgresql:hobby-dev")
   end
+
+  # cleanup
+  run("rm -rf test/")
 end
 
